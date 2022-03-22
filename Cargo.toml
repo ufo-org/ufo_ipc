@@ -1,0 +1,27 @@
+[package]
+name = "ufo_ipc"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+nix = "^0.23"
+os_pipe = "1.0.*"
+libc = "0.2.*"
+bytemuck = "1.8.0"
+paste = "1.0.6"
+derive-try-from-primitive = "1.0.0"
+thiserror = "^1.0"
+
+[lib]
+name = "ufo_ipc"
+path = "src/lib.rs"
+
+[[bin]]
+name = "starter"
+path = "src/starter.rs"
+
+[[bin]]
+name = "child"
+path = "src/child.rs"
