@@ -48,8 +48,8 @@ impl ProtocolConstant {
     }
 }
 
-#[derive(Debug)]
-pub struct FunctionToken(u64);
+#[derive(Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
+pub struct FunctionToken(pub u64);
 
 #[derive(Debug)]
 pub struct Request {

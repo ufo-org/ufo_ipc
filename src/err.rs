@@ -4,7 +4,7 @@ use thiserror::Error;
 
 use crate::{
     protocol::*,
-    serialization::{GenericValue, SerializedType},
+    serialization::SerializedType,
     GenericValueBoxed,
 };
 
