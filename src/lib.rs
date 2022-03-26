@@ -1,4 +1,4 @@
-
+// use libc::{dup2, STDERR_FILENO, STDOUT_FILENO};
 use os_pipe::{PipeReader, PipeWriter};
 use std::{
     io::Result,
@@ -9,6 +9,12 @@ use std::{
 
 mod pipe;
 use pipe::*;
+
+mod err;
+pub use err::*;
+
+mod endpoint;
+pub use endpoint::{sealed::*, *};
 
 mod protocol;
 pub use protocol::*;
@@ -39,16 +45,10 @@ impl StartSubordinateProcess for Command {
             .env(SUB_OUT_ENV, child_pipefd_out.as_raw_fd().to_string())
             .spawn()?;
 
-        let mut controller = ControllerProcess {
-            subordinate,
-            cmd_out: parent_to_child.1,
-            cmd_in: child_to_parent.0,
-        };
+        let mut controller =
+            ControllerProcess::new(subordinate, parent_to_child.1, child_to_parent.0);
 
-        controller
-            .write_protocol(ProtocolConstant::Hello)?
-            .read_protocol()?
-            .expect(ProtocolConstant::Hello)?;
+        controller.hello()?;
 
         // child process good and started, drop our copies of their sides of the pipes
         std::mem::drop(child_pipefd_in);
@@ -72,10 +72,17 @@ pub fn subordinate_begin() -> Result<SubordinateProcess> {
     let cmd_in = unsafe { PipeReader::from_raw_fd(pipe_in) };
     let cmd_out = unsafe { PipeWriter::from_raw_fd(pipe_out) };
 
+    // let (stdout_r, stdout_w) = pipe2_nocloexec()?;
+    // let (stderr_r, stderr_w) = pipe2_nocloexec()?;
+
+    // unsafe{
+    //     dup2(stdout_w.as_raw_fd(), STDOUT_FILENO);
+    //     dup2(stderr_w.as_raw_fd(), STDERR_FILENO);
+    // }
+
     let mut sub = SubordinateProcess { cmd_in, cmd_out };
 
-    sub.read_protocol()?.expect(ProtocolConstant::Hello)?;
-    sub.write_protocol(ProtocolConstant::Hello)?;
+    sub.hello()?;
 
     Ok(sub)
 }

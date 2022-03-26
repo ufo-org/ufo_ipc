@@ -7,9 +7,13 @@ fn main() -> Result<()> {
         .args(&["run", "--bin", "child"])
         .start_subordinate_process()?;
 
-    println!("Got: {}", child.read_string()?);
+    let response = child.peek("test", &[])?;
+    println!("peek: {:?}", response);
 
-    child.read_protocol()?.expect(ProtocolConstant::Goodbye)?;
+    let response = child.poke("test", &[GenericValue::Vstring("testing")], &[])?;
+    println!("poke: {:?}", response);
+
+    child.shutdown(&[])?;
 
     Ok(())
 }
