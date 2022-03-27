@@ -112,7 +112,7 @@ impl ControllerProcess {
         Ok(())
     }
 
-    pub fn shutdown(mut self, aux: &[GenericValueRef]) -> io::Result<()> {
+    pub fn shutdown(&mut self, aux: &[GenericValueRef]) -> io::Result<()> {
         self.write_protocol(ProtocolConstant::Goodbye)?
             .write_generic_vec(aux)?
             .flush()?;
