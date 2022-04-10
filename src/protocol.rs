@@ -18,11 +18,13 @@ pub enum ProtocolConstant {
     // call function
     // and get things back
     // deregister function (comes with data)
-    Define,
+    DefineFunction,
+    DefineData,
     Call,
     Result = 0xc5,
     Erroneous = 0x5c,
-    Unregister,
+    FreeFunction,
+    FreeData,
     Peek,
     Poke,
     Log,
@@ -48,8 +50,35 @@ impl ProtocolConstant {
     }
 }
 
-#[derive(Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Hash, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
+pub struct DataToken(pub u64);
+
+impl From<u64> for DataToken {
+    fn from(v: u64) -> Self {
+        DataToken(v)
+    }
+}
+
+impl From<DataToken> for u64 {
+    fn from(v: DataToken) -> Self {
+        v.0
+    }
+}
+
+#[derive(Debug, Hash, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
 pub struct FunctionToken(pub u64);
+
+impl From<u64> for FunctionToken {
+    fn from(v: u64) -> Self {
+        FunctionToken(v)
+    }
+}
+
+impl From<FunctionToken> for u64 {
+    fn from(v: FunctionToken) -> Self {
+        v.0
+    }
+}
 
 #[derive(Debug)]
 pub struct Request {
@@ -61,16 +90,21 @@ pub struct Request {
 #[must_use]
 pub enum ProtocolCommand {
     Shutdown,
-    Define {
+    DefineFunction {
         token: FunctionToken,
         function_blob: Vec<u8>,
         associated_data: Vec<GenericValueBoxed>,
+    },
+    DefineData {
+        token: DataToken,
+        value: Vec<GenericValueBoxed>,
     },
     Call {
         token: FunctionToken,
         args: Vec<GenericValueBoxed>,
     },
-    Free(FunctionToken),
+    FreeFunction(FunctionToken),
+    FreeData(DataToken),
     Peek(String),
     Poke {
         key: String,
@@ -182,7 +216,7 @@ impl ControllerProcess {
         self.id_ctr += 1;
         let token = self.id_ctr;
 
-        self.write_protocol(ProtocolConstant::Define)?
+        self.write_protocol(ProtocolConstant::DefineFunction)?
             .write_u64(token)?
             .write_bytes(function_blob)?
             .write_generic_vec(associated_data)?
@@ -208,7 +242,34 @@ impl ControllerProcess {
         token: &FunctionToken,
         aux: &[GenericValueRef],
     ) -> io::Result<Response<()>> {
-        self.write_protocol(ProtocolConstant::Unregister)?
+        self.write_protocol(ProtocolConstant::FreeFunction)?
+            .write_u64(token.0)?
+            .write_generic_vec(aux)?
+            .read_response(|_| Ok(()))
+    }
+
+    pub fn define_data(
+        &mut self,
+        value: &[GenericValueRef],
+        aux: &[GenericValueRef]
+    ) -> io::Result<Response<DataToken>> {
+        self.id_ctr += 1;
+        let token = self.id_ctr;
+
+        self.write_protocol(ProtocolConstant::DefineData)?
+            .write_u64(token)?
+            .write_generic_vec(value)?            
+            .write_generic_vec(aux)?
+            .read_response(|_| Ok(DataToken(token)))
+    }
+
+
+    pub fn free_data(
+        &mut self,
+        token: &DataToken,
+        aux: &[GenericValueRef],
+    ) -> io::Result<Response<()>> {
+        self.write_protocol(ProtocolConstant::FreeData)?
             .write_u64(token.0)?
             .write_generic_vec(aux)?
             .read_response(|_| Ok(()))
@@ -246,12 +307,12 @@ impl SubordinateProcess {
         Ok(())
     }
 
-    fn recv_define(&mut self) -> io::Result<ProtocolCommand> {
+    fn recv_define_function(&mut self) -> io::Result<ProtocolCommand> {
         let token = self.read_u64()?;
         let function_blob = self.read_bytes()?;
         let associated_data = self.read_generic_vec()?;
 
-        Ok(ProtocolCommand::Define {
+        Ok(ProtocolCommand::DefineFunction {
             token: FunctionToken(token),
             function_blob,
             associated_data,
@@ -267,9 +328,24 @@ impl SubordinateProcess {
         })
     }
 
-    fn recv_free(&mut self) -> io::Result<ProtocolCommand> {
+    fn recv_free_function(&mut self) -> io::Result<ProtocolCommand> {
         let token = self.read_u64()?;
-        Ok(ProtocolCommand::Free(FunctionToken(token)))
+        Ok(ProtocolCommand::FreeFunction(FunctionToken(token)))
+    }
+
+    fn recv_define_data(&mut self) -> io::Result<ProtocolCommand> {
+        let token = self.read_u64()?;
+        let value = self.read_generic_vec()?;
+
+        Ok(ProtocolCommand::DefineData {
+            token: DataToken(token),
+            value,
+        })
+    }
+
+    fn recv_free_data(&mut self) -> io::Result<ProtocolCommand> {
+        let token = self.read_u64()?;
+        Ok(ProtocolCommand::FreeData(DataToken(token)))
     }
 
     fn recv_peek(&mut self) -> io::Result<ProtocolCommand> {
@@ -285,9 +361,12 @@ impl SubordinateProcess {
 
     pub fn recv_command(&mut self) -> io::Result<Request> {
         let command = match self.read_protocol()? {
-            ProtocolConstant::Define => self.recv_define(),
+            ProtocolConstant::DefineFunction => self.recv_define_function(),
             ProtocolConstant::Call => self.recv_call(),
-            ProtocolConstant::Unregister => self.recv_free(),
+            ProtocolConstant::FreeFunction => self.recv_free_function(),
+
+            ProtocolConstant::DefineData => self.recv_define_data(),
+            ProtocolConstant::FreeData => self.recv_free_data(),
 
             ProtocolConstant::Peek => self.recv_peek(),
             ProtocolConstant::Poke => self.recv_poke(),

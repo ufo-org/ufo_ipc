@@ -1,6 +1,6 @@
 use derive_try_from_primitive::TryFromPrimitive;
 
-use crate::err::UnexpectedGenericType;
+use crate::{err::UnexpectedGenericType, DataToken};
 
 #[derive(Copy, Clone, Debug)]
 pub enum GenericValue<ArrType, StrType> {
@@ -19,6 +19,7 @@ pub enum GenericValue<ArrType, StrType> {
     Vbool(bool),
     Vstring(StrType),
     Vbytes(ArrType),
+    Token(DataToken),
 
     Marker(u8),
 }
@@ -64,6 +65,7 @@ impl<ArrType, StrType> GenericValue<ArrType, StrType> {
             GenericValue::Vbool(_) => SerializedType::Sbool,
             GenericValue::Vstring(_) => SerializedType::Sstring,
             GenericValue::Vbytes(_) => SerializedType::Sbytes,
+            GenericValue::Token(_) => SerializedType::Token,
             GenericValue::Marker(_) => SerializedType::Marker,
         }
     }
@@ -104,6 +106,7 @@ pub enum SerializedType {
     Sbool,
     Sstring,
     Sbytes,
+    Token,
 
     Marker,
 }
@@ -230,6 +233,7 @@ pub(crate) mod sealed {
                 SerializedType::Sstring => GenericValue::Vstring(self.read_string()?),
                 SerializedType::Marker => GenericValue::Marker(self.read_u8()?),
                 SerializedType::Sbytes => GenericValue::Vbytes(self.read_bytes()?),
+                SerializedType::Token => GenericValue::Token(DataToken(self.read_u64()?)),
             })
         }
 
@@ -268,6 +272,9 @@ pub(crate) mod sealed {
                 }
                 GenericValue::Vbytes(v) => {
                     self.write_gtype(SerializedType::Sbytes)?.write_bytes(v)?
+                }
+                GenericValue::Token(DataToken(v)) => {
+                    self.write_gtype(SerializedType::Token)?.write_u64(v)?
                 }
                 GenericValue::Marker(v) => self.write_gtype(SerializedType::Marker)?.write_u8(v)?,
             };
