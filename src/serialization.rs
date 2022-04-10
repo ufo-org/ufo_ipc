@@ -27,6 +27,55 @@ pub enum GenericValue<ArrType, StrType> {
 pub type GenericValueRef<'a> = GenericValue<&'a [u8], &'a str>;
 pub type GenericValueBoxed = GenericValue<Vec<u8>, String>;
 
+macro_rules! from_generic_type {
+    ($t:ty, $cons:ident) => {
+        impl<ArrType, StrType> From<$t> for GenericValue<ArrType, StrType> {
+            fn from(value: $t) -> Self {
+                GenericValue::$cons(value)
+            }
+        }
+    }
+}
+
+from_generic_type!(u8, Vu8);
+from_generic_type!(i8, Vi8);
+from_generic_type!(u16, Vu16);
+from_generic_type!(i16, Vi16);
+from_generic_type!(u32, Vu32);
+from_generic_type!(i32, Vi32);
+from_generic_type!(u64, Vu64);
+from_generic_type!(i64, Vi64);
+from_generic_type!(f32, Vf32);
+from_generic_type!(f64, Vf64);
+from_generic_type!(usize, Vusize);
+from_generic_type!(isize, Visize);
+from_generic_type!(bool, Vbool);
+from_generic_type!(DataToken, Token);
+
+impl<'a, StrType> From<&'a [u8]> for GenericValue<&'a [u8], StrType> {
+    fn from(value: &'a [u8]) -> Self {
+        GenericValue::Vbytes(value)
+    }
+}
+
+impl<StrType> From<Vec<u8>> for GenericValue<Vec<u8>, StrType> {
+    fn from(value: Vec<u8>) -> Self {
+        GenericValue::Vbytes(value)
+    }
+}
+
+impl<'a, ArrType> From<&'a str> for GenericValue<ArrType, &'a str> {
+    fn from(value: &'a str) -> Self {
+        GenericValue::Vstring(value)
+    }
+}
+
+impl<ArrType> From<String> for GenericValue<ArrType, String> {
+    fn from(value: String) -> Self {
+        GenericValue::Vstring(value)
+    }
+}
+
 macro_rules! expect_generic_type {
     ($name: ident, $cons: ident, $ex: ident, $t:ty) => {
         paste::paste! {
@@ -85,6 +134,7 @@ impl<ArrType, StrType> GenericValue<ArrType, StrType> {
     expect_generic_type!(bool, Vbool, Sbool, bool);
     expect_generic_type!(string, Vstring, Sstring, StrType);
     expect_generic_type!(bytes, Vbytes, Sbytes, ArrType);
+    expect_generic_type!(token, Token, Token, DataToken);
     expect_generic_type!(marker, Marker, Marker, u8);
 }
 
@@ -325,3 +375,4 @@ pub(crate) mod sealed {
         }
     }
 }
+
