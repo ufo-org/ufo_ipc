@@ -121,8 +121,8 @@ pub enum LogType {
 
 #[derive(Debug)]
 pub struct LogEntry {
-    log_type: LogType,
-    line: String,
+    _log_type: LogType,
+    _line: String,
 }
 
 #[derive(Debug)]
@@ -167,7 +167,7 @@ impl ControllerProcess {
         for _ in 0..log_ct {
             let log_type = self.read_log_type()?;
             let line = self.read_string()?;
-            logs.push(LogEntry { log_type, line });
+            logs.push(LogEntry { _log_type: log_type, _line: line });
         }
         Ok(logs)
     }

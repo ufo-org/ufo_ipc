@@ -24,6 +24,30 @@ pub enum GenericValue<ArrType, StrType> {
     Marker(u8),
 }
 
+impl<'a> From<&'a GenericValueBoxed> for GenericValueRef<'a> {
+    fn from(boxed: &'a GenericValueBoxed) -> Self {
+        match boxed {
+            GenericValueBoxed::Vu8(v) => GenericValueRef::Vu8(*v),
+            GenericValueBoxed::Vi8(v) => GenericValueRef::Vi8(*v),
+            GenericValueBoxed::Vu16(v) => GenericValueRef::Vu16(*v),
+            GenericValueBoxed::Vi16(v) => GenericValueRef::Vi16(*v),
+            GenericValueBoxed::Vu32(v) => GenericValueRef::Vu32(*v),
+            GenericValueBoxed::Vi32(v) => GenericValueRef::Vi32(*v),
+            GenericValueBoxed::Vu64(v) => GenericValueRef::Vu64(*v),
+            GenericValueBoxed::Vi64(v) => GenericValueRef::Vi64(*v),
+            GenericValueBoxed::Vf32(v) => GenericValueRef::Vf32(*v),
+            GenericValueBoxed::Vf64(v) => GenericValueRef::Vf64(*v),
+            GenericValueBoxed::Vusize(v) => GenericValueRef::Vusize(*v),
+            GenericValueBoxed::Visize(v) => GenericValueRef::Visize(*v),
+            GenericValueBoxed::Vbool(v) => GenericValueRef::Vbool(*v),
+            GenericValueBoxed::Vstring(v) => GenericValueRef::Vstring(v.as_str()),
+            GenericValueBoxed::Vbytes(v) => GenericValueRef::Vbytes(v.as_slice()),
+            GenericValueBoxed::Token(v) => GenericValueRef::Token(*v),
+            GenericValueBoxed::Marker(v) => GenericValueRef::Marker(*v),
+        }
+    }
+}
+
 pub type GenericValueRef<'a> = GenericValue<&'a [u8], &'a str>;
 pub type GenericValueBoxed = GenericValue<Vec<u8>, String>;
 
